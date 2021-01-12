@@ -19,9 +19,6 @@ def get_quote():
   quote = "@MEE6 " + response.text
   return(quote)
 
-def get_weather():
-  weather.weather()
-
 @client.event
 async def on_ready():
   print('We have logged in as {0.user}'.format(client))
@@ -35,6 +32,64 @@ async def on_message(message):
     await message.channel.send(quote)
   if message.content.startswith('!'):
     quote = weather()
+
+@client.event
+async def remind(self, message, stripped, server):
+
+        args = stripped.split(' ')
+
+        if len(args) < 2:
+            await message.channel.send(embed=discord.Embed(description=self.get_strings(server)['remind']['no_argument'].format(prefix=server.prefix)))
+            return
+
+        scope = message.channel.id
+        pref = '#'
+
+        if args[0].startswith('<'): # if a scope is provided
+
+            scope, pref = self.parse_mention(message, args[0], server)
+            if scope is None:
+                await message.channel.send(embed=discord.Embed(description=self.get_strings(server)['remind']['invalid_tag']))
+                return
+
+            args.pop(0)
+
+        try:
+            while args[0] == '':
+                args.pop(0)
+
+            msg_time = self.format_time(args[0], server)
+        except ValueError:
+            await message.channel.send(embed=discord.Embed(description=self.get_strings(server)['remind']['invalid_time']))
+            return
+
+        if msg_time is None:
+            await message.channel.send(embed=discord.Embed(description=self.get_strings(server)['remind']['invalid_time']))
+            return
+
+        args.pop(0)
+
+        msg_text = ' '.join(args)
+
+        if self.count_reminders(scope) > 5 and not self.get_patrons(message.author.id):
+            await message.channel.send(embed=discord.Embed(description=self.get_strings(server)['remind']['invalid_count'].format(prefix=server.prefix)))
+            return
+
+        if self.length_check(message, msg_text) is not True:
+            if self.length_check(message, msg_text) == '150':
+                await message.channel.send(embed=discord.Embed(description=self.get_strings(server)['remind']['invalid_chars'].format(len(msg_text), prefix=server.prefix)))
+
+            elif self.length_check(message, msg_text) == '2000':
+                await message.channel.send(embed=discord.Embed(description=self.get_strings(server)['remind']['invalid_chars_2000']))
+
+            return
+
+        if pref == '#':
+            if not self.perm_check(message, server):
+                await message.channel.send(embed=discord.Embed(description=self.get_strings(server)['remind']['no_perms'].format(prefix=server.prefix)))
+                return
+
+        print('Registered a new reminder for {}'.format(message.guild.name))
 
 @bot.command()
 async def weather(ctx, *, city: str):
